@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# Download netcdf files
+python ./grab_netcdf.py
 pip install git+https://github.com/jgomezdans/GomezEngine.git
 jupyter contrib nbextension install --user
 jupyter nbextension enable --py widgetsnbextension
