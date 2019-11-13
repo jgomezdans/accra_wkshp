@@ -1,0 +1,25 @@
+name: accra_wkshp_ucl
+channels:
+    - conda-forge
+dependencies:
+    - jupyterlab
+    - notebook
+    - nbconvert
+    - ipykernel
+    - ipywidgets
+    - ipyleaflet
+    - widgetsnbextension
+    - matplotlib
+    - pandas
+    - scipy
+    - python>=3.6
+    - gdal>=2.3.0
+    - tqdm
+    - libgdal>=2.3.0
+    - jupyter_contrib_nbextensions
+    - widgetsnbextension
+    - netCDF4
+    - pip
+    - pip:
+        - pcse
+        - git+https://github.com/jgomezdans/GomezEngine
