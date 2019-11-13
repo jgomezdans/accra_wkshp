@@ -205,11 +205,11 @@ def select_region_modis_lai():
             readout=True,
             readout_format="d",
         ),
-        district=widgets.Dropdown(options=district_names, value="Garu Tempane")
-        mcd15_url=fixed("http://gws-access.ceda.ac.uk/public/odanceo/MCD15"),
-        mcd12_url=fixed("http://gws-access.ceda.ac.uk/public/odanceo/MCD12"),
-        cutline_ds=fixed("carto/Districts/Map_of_Districts_216.shp"),
-        field_name=fixed("NAME"),
+        district=widgets.Dropdown(options=district_names, value="Garu Tempane"),
+        mcd15_url=widgets.fixed("http://gws-access.ceda.ac.uk/public/odanceo/MCD15"),
+        mcd12_url=widgets.fixed("http://gws-access.ceda.ac.uk/public/odanceo/MCD12"),
+        cutline_ds=widgets.fixed("carto/Districts/Map_of_Districts_216.shp"),
+        field_name=widgets.fixed("NAME"),
     )
     return w
 
