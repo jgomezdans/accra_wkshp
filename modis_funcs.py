@@ -212,7 +212,7 @@ def select_region_modis_lai():
 
 def accum_lai(df, start_date, end_date, field="q50"):
     plt.figure(figsize=(15, 7))
-    years = np.unique([x.year for x in df["date"].values])
+    years = np.unique([x.year for x in df["date"]])
     for year in years:
         s0 = dt.datetime(year, start_date.month, start_date.day)
         s1 = dt.datetime(year, end_date.month, end_date.day)
@@ -247,6 +247,6 @@ def cummulative_lai_plots(df):
 
     def plot_aggr_meteo(sowing_harvesting):
         sowing, harvesting = sowing_harvesting
-        accum_lai(sowing, harvesting, df)
+        accum_lai(df, sowing, harvesting)
 
     widgets.interact_manual(plot_aggr_meteo, sowing_harvesting=selection_range_slider)
