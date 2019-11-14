@@ -23,6 +23,11 @@ parameters = ["Irradiance \n(kJ·m-2·d-1)",
     "Precip\n (mm·d-1)"]
 
 
+regions = ["Ashanti",  "Brong_Ahafo",  "Central",  
+           "Eastern",  "Greater_Accra",  "Northern",
+           "Upper_East",  "Upper_West",  "Volta",
+           "Western"]
+
 
 def aggregate_plots():
     start_date = dt.datetime(2010, 1, 1)
@@ -41,9 +46,9 @@ def aggregate_plots():
         layout={'width': '600px'}
     )
 
-    def plot_aggr_meteo(sowing_harvesting):
+    def plot_aggr_meteo(sowing_harvesting, region_name, selected_years):
         sowing, harvesting = sowing_harvesting
-        meteo_files = sorted([f for f in Path("./data/").glob("Ghana.20??")])
+        meteo_files = get_region_data_func(region_name, selected_years, do_plot=False)
         data = aggregate_meteo(meteo_files, sowing, harvesting, aggr=np.sum)
         fig, axs = plt.subplots(nrows=2, ncols=3, sharex=True,
                 figsize=(12,12), squeeze=True)
@@ -51,11 +56,15 @@ def aggregate_plots():
         for i in range(6):
             axs[i].plot(data[:, 0], data[:, i + 1], '-o')
             axs[i].set_title(parameters[i])
-
+        fig.suptitle(region_name)
 
     widgets.interact_manual(
         plot_aggr_meteo,
-        sowing_harvesting=selection_range_slider)
+        sowing_harvesting=selection_range_slider,
+        region_name=widgets.Dropdown(
+                        options=regions, value='Central', description='Region:',
+                        disabled=False,), 
+        selected_years=widgets.IntRangeSlider(min=2010, max=2018, value=(2015,2016)))
 
 
 
@@ -141,3 +150,29 @@ def extract_data(lat, lon, meteo_folder="era5_data",
         for _ in executor.map(wrapper, years):
             pass
 
+
+def get_region_data():
+    @widgets.interact(region_name=widgets.Dropdown(
+                            options=regions, value='Central', description='Region:',
+                            disabled=False,), 
+                            selected_years=widgets.IntRangeSlider(min=2010, max=2018, value=(2015,2016)))
+    def get_region_data_fun(region_name, selected_years, do_plot=True):
+        start_year, end_year = selected_years
+        meteo_files = sorted([f for f in Path(f'./data/meteo/{region_name}/').glob(f"{region_name}.20??")])
+        years = [int(f.name.split(".")[1]) for f in meteo_files]
+        do_files = [f for y, f in zip(years, meteo_files) if start_year <= y <= end_year]
+        if do_plot:
+            plot_meteo(do_files)
+        else:
+            return do_files
+        
+        
+def get_region_data_func(region_name, selected_years, do_plot=True):
+    start_year, end_year = selected_years
+    meteo_files = sorted([f for f in Path(f'./data/meteo/{region_name}/').glob(f"{region_name}.20??")])
+    years = [int(f.name.split(".")[1]) for f in meteo_files]
+    do_files = [f for y, f in zip(years, meteo_files) if start_year <= y <= end_year]
+    if do_plot:
+        plot_meteo(do_files)
+    else:
+        return do_files
