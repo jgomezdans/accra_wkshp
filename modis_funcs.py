@@ -250,3 +250,13 @@ def cummulative_lai_plots(df):
         accum_lai(df, sowing, harvesting)
 
     widgets.interact_manual(plot_aggr_meteo, sowing_harvesting=selection_range_slider)
+
+def get_sfc_qc(qa_data, mask57 = 0b11100000):
+    sfc_qa = np.right_shift(np.bitwise_and(qa_data, mask57), 5)
+    return sfc_qa
+
+def get_scaling(sfc_qa, golden_ratio=0.61803398875):
+    weight = np.zeros_like(sfc_qa, dtype=np.float)
+    for qa_val in [0, 1, 2, 3]:
+        weight[sfc_qa == qa_val] = np.power(golden_ratio, float(qa_val))
+    return weight
