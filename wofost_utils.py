@@ -1,10 +1,12 @@
 #!/usr/bin/env python
 
 from pathlib import Path
-
+import datetime as dt
 import numpy as np
 
 import matplotlib.pyplot as plt
+import matplotlib
+
 
 import pandas as pd
 
@@ -13,6 +15,13 @@ from pcse.fileinput import YAMLCropDataProvider, YAMLAgroManagementReader
 from pcse.util import WOFOST71SiteDataProvider
 from pcse.base import ParameterProvider
 from pcse.models import Wofost71_WLP_FD, Wofost71_PP
+
+import ipywidgets.widgets as widgets
+from ipywidgets import interact, interactive, fixed
+
+
+from pandas.plotting import register_matplotlib_converters
+register_matplotlib_converters()
 
 
 def set_up_wofost(meteo, crop, variety, soil, mgmt, wav=100, co2=400, rdmsol=100.):
@@ -36,3 +45,37 @@ def run_wofost(parameters, agromanagement, wdp, potential=True):
     df_results = pd.DataFrame(wofsim.get_output())
     df_results = df_results.set_index("day")
     return df_results, wofsim
+
+
+def change_sowing_date(sowing_date, harvest_date, n_days, meteo, crop, variety, soil, mgmt):
+    parameters, agromanagement, wdp = set_up_wofost(meteo, crop, variety, soil, mgmt,
+                                                    wav=0, co2=400, rdmsol=100.)
+    fig, axs = plt.subplots(nrows=2, ncols=2, sharex=True, squeeze=True,
+                           figsize=(14,14))
+    axs = axs.flatten()
+    while sowing_date < harvest_date:
+        agromanagement[0][dt.date(
+            2011, 1, 1)]['CropCalendar']['crop_start_date'] = sowing_date
+        df_results, simulator = run_wofost(parameters, agromanagement, wdp,
+                                           potential=False)
+        sowing_date += dt.timedelta(days=n_days)
+        axs[0].plot_date(df_results.index, df_results.TAGP)
+        axs[1].plot_date(df_results.index, df_results.SM)
+        axs[2].plot_date(df_results.index, df_results.LAI)
+        axs[3].plot_date(df_results.index, df_results.DVS)
+    # fig.autofmt_xdate()
+    plt.gcf().autofmt_xdate()
+    plt.gca().fmt_xdata = matplotlib.dates.DateFormatter('%Y-%m-%d')
+    plt.xlim(dt.date(2011, 3, 1))
+    
+
+def change_sowing_slider():
+    interact(change_sowing_date,
+            sowing_date=widgets.DatePicker(value=dt.date(2011, 7, 1)),
+            harvest_date=widgets.DatePicker(value=dt.date(2011, 10, 1)),
+            n_days=widgets.IntSlider(value=10, min=2, max=20),
+            meteo=fixed("Ghana"),
+            crop=fixed("maize"),
+            variety=fixed("Maize_VanHeemst_1988"),
+            soil=fixed("ec4.new"),
+            mgmt=fixed("ghana_maize.amgt"))
