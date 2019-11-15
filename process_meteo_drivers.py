@@ -2,6 +2,7 @@
 """Some convenience files to grab meteorological data and convert
 to CABO format to use within WOFOST. So far, using ERA5
 """
+import json
 import struct
 import logging
 
@@ -13,11 +14,16 @@ from collections import namedtuple
 
 from pathlib import Path
 
+import tqdm
+
 import numpy as np
 
 from osgeo import gdal
 
 from netCDF4 import Dataset, date2index
+
+from concurrent.futures import ThreadPoolExecutor
+from functools import partial
 
 
 LOG = logging.getLogger(__name__)
@@ -77,9 +83,19 @@ def retrieve_pixel_value(lon, lat, data_source):
     return elev[0]
 
 
-
-def era_to_cabo(site_name, year, lon, lat, elev, cabo_file, nc_file, parnames,
-                size=0.25, c1=-0.18, c2=-0.55):
+def era_to_cabo(
+    site_name,
+    year,
+    lon,
+    lat,
+    elev,
+    cabo_file,
+    nc_file,
+    parnames,
+    size=0.25,
+    c1=-0.18,
+    c2=-0.55,
+):
     """Convert ERA5 dataset to CABO format
     
     Parameters
@@ -111,63 +127,50 @@ def era_to_cabo(site_name, year, lon, lat, elev, cabo_file, nc_file, parnames,
     dnlat = ds.variables["latitude"][:].min()
     uplon = ds.variables["longitude"][:].max()
     dnlon = ds.variables["longitude"][:].min()
-    x = int((lon-dnlon+size/2)/size)
-    y = int((lat-uplat-size/2)/-size)
+    x = int((lon - dnlon + size / 2) / size)
+    y = int((lat - uplat - size / 2) / -size)
     times = ds.variables["time"]
 
     # Preprocess data: calculate daily means/aggregates
     # Get the right units.
     rad = (
         np.sum(
-            pars.ssrd.reshape(
-                -1, 24, pars.ssrd.shape[1], pars.ssrd.shape[2]
-            ),
+            pars.ssrd.reshape(-1, 24, pars.ssrd.shape[1], pars.ssrd.shape[2]),
             axis=1,
         )
         / 1000.0
     )
     tmax = (
         np.max(
-            pars.mx2t.reshape(
-                -1, 24, pars.mx2t.shape[1], pars.mx2t.shape[2]
-            ),
+            pars.mx2t.reshape(-1, 24, pars.mx2t.shape[1], pars.mx2t.shape[2]),
             axis=1,
         )
         - 273.15
     )
     tmin = (
         np.min(
-            pars.mn2t.reshape(
-                -1, 24, pars.mn2t.shape[1], pars.mn2t.shape[2]
-            ),
+            pars.mn2t.reshape(-1, 24, pars.mn2t.shape[1], pars.mn2t.shape[2]),
             axis=1,
         )
         - 273.15
     )
     prec = (
         np.sum(
-            pars.tp.reshape(
-                -1, 24, pars.tp.shape[1], pars.tp.shape[2]
-            ),
-            axis=1,
+            pars.tp.reshape(-1, 24, pars.tp.shape[1], pars.tp.shape[2]), axis=1
         )
         * 1000.0
     )
     prec[prec < 0.01] = 0
     wind_u = np.mean(
-        pars.u10.reshape(-1, 24, pars.u10.shape[1], pars.u10.shape[2]),
-        axis=1,
+        pars.u10.reshape(-1, 24, pars.u10.shape[1], pars.u10.shape[2]), axis=1
     )
     wind_v = np.mean(
-        pars.v10.reshape(-1, 24, pars.v10.shape[1], pars.v10.shape[2]),
-        axis=1,
+        pars.v10.reshape(-1, 24, pars.v10.shape[1], pars.v10.shape[2]), axis=1
     )
     wind = np.sqrt(np.square(wind_u) + np.square(wind_v))
     hum = humidity_from_dewpoint(
         np.mean(
-            pars.d2m.reshape(
-                -1, 24, pars.d2m.shape[1], pars.d2m.shape[2]
-            ),
+            pars.d2m.reshape(-1, 24, pars.d2m.shape[1], pars.d2m.shape[2]),
             axis=1,
         )
     )
@@ -211,7 +214,6 @@ def era_to_cabo(site_name, year, lon, lat, elev, cabo_file, nc_file, parnames,
     LOG.info(f"Saved CABO file {str(cabo_file):s}.")
 
 
-
 def grab_meteo_data(
     lat,
     lon,
@@ -227,7 +229,7 @@ def grab_meteo_data(
     dem_file="/vsicurl/http://www2.geog.ucl.ac.uk/"
     + "~ucfafyi/eles/global_dem.vrt",
     era_lat_chunk=1.0,
-    era_lon_chunk=1.0
+    era_lon_chunk=1.0,
 ):
     """Grab meteorological data and set it up to use with WOFOST.
     At present, we download the data from ERA5, but other sources may
@@ -268,7 +270,7 @@ def grab_meteo_data(
     # These are the parameters
     parnames = ["ssrd", "mx2t", "mn2t", "tp", "u10", "v10", "d2m"]
     return_files = {}
-    
+
     cabo_file = Path(data_dir) / f"{site_name:s}.{year:d}"
     if not cabo_file.exists():
         LOG.info(f"No CABO file for {year:d}...")
@@ -278,7 +280,50 @@ def grab_meteo_data(
             raise ValueError("No NETCDF file!")
         LOG.info(f"Converting {str(nc_file):s} to CABO")
         LOG.info("Converting units to daily etc.")
-        era_to_cabo(site_name, year, lon, lat, elevation,
-            cabo_file, nc_file, parnames,size=size)
+        era_to_cabo(
+            site_name,
+            year,
+            lon,
+            lat,
+            elevation,
+            cabo_file,
+            nc_file,
+            parnames,
+            size=size,
+        )
     return cabo_file
-    
+
+
+if __name__ == "__main__":
+    # Extract meteo inputs for all districts using centroid coordinates!
+    districts = json.load(
+        open("carto/Districts/centroid_regions.geojson", "r")
+    )
+    coords = [
+        feat["geometry"]["coordinates"] for feat in districts["features"]
+    ]
+    names = [
+        feat["properties"]["RGN_NM2012"] for feat in districts["features"]
+    ]
+    locations = dict(zip(names, coords))
+    years = np.arange(2010, 2019).astype(np.int)
+
+    for location, (lon, lat) in tqdm.tqdm(locations.items()):
+        print(location, lon, lat)
+        loc_name = location.replace(" ", "_")
+        meteo_folder = Path(f"./data/meteo/{loc_name}")
+        meteo_folder.mkdir(parents=True, exist_ok=True)
+        wrapper = lambda year: grab_meteo_data(
+            lat,
+            lon,
+            year,
+            f"era5_africa_{year:d}.nc",
+            "/data/geospatial_08/ucfajlg/ERA5_meteo",
+            data_dir=meteo_folder.as_posix(),
+            site_name=loc_name,
+        )
+        # create a thread pool of 10 threads
+
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            for _ in executor.map(wrapper, years):
+                pass
