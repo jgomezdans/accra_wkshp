@@ -82,7 +82,9 @@ def run_wofost(parameters, agromanagement, wdp, potential=False):
     if potential:
         wofsim = Wofost71_PP(parameters, wdp, agromanagement)
     else:
+        
         wofsim = Wofost71_WLP_FD(parameters, wdp, agromanagement)
+    print(parameters)
     wofsim.run_till_terminate()
     df_results = pd.DataFrame(wofsim.get_output())
     df_results = df_results.set_index("day")
@@ -134,22 +136,19 @@ def change_sowing_slider():
 def wofost_parameter_sweep_func(crop_start_date=dt.date(2011, 7, 1),
                   crop_end_date=dt.datetime(2011, 11, 1),
                   span=40.0, tdwi=20., tsum1=750., tsum2=859.,
-                  tsumem=70,rgrlai=0.05,
+                  tsumem=70,rgrlai=0.05,cvo=0.05, cvl=0.05,
                   meteo="Upper_East", crop="maize",
                   variety="Maize_VanHeemst_1988", soil="ec4.new",
                   wav=100, co2=400, rdmsol=100., potential=False):
     cropdata = YAMLCropDataProvider(fpath="./WOFOST_crop_parameters")
     cropdata.set_active_crop(crop, variety)
-    cropdata['SPAN'] = span
-    cropdata['TSUM1'] = tsum1
-    cropdata['TSUM2'] = tsum2
-    cropdata['TSUMEM'] = tsumem
-    cropdata['TDWI'] = tdwi
-    cropdata['RGRLAI'] = rgrlai
     soildata = CABOFileReader(soil)
-    soildata['RDMSOL'] = rdmsol
+    soildata["RDMSOL"] = rdmsol
     sitedata = WOFOST71SiteDataProvider(WAV=wav, CO2=co2)
     parameters = ParameterProvider(cropdata=cropdata, soildata=soildata, sitedata=sitedata)
+    for p, v in zip(["SPAN", "TSUM1", "TSUM2", "TSUMEM", "TDWI", "RGRLAI", "CVO", "CVL"],
+                    [span, tsum1, tsum2, tsumem, tdwi, rgrlai, cvo, cvl]):
+        parameters.set_override(p, v, check=True) 
     with open("temporal.amgt", 'w') as fp:
         fp.write(agromanagement_contents.format(year=crop_start_date.year,
                         crop=crop, variety=variety, crop_start_date=crop_start_date,
@@ -170,26 +169,35 @@ def wofost_parameter_sweep_func(crop_start_date=dt.date(2011, 7, 1),
     plt.gca().fmt_xdata = matplotlib.dates.DateFormatter('%Y-%m-%d')
     axs[8].set_xlabel("Time [d]")
     axs[9].set_xlabel("Time [d]")
-    
 
-    
+    key = f"span_{span}-tdwi_{tdwi}-tsum1_{tsum1}-tsum2_{tsum2}-tsumem_{tsumem}"
+    key += f"-rgrlai_{rgrlai}-wav_{wav}-cvo_{cvo}-cvl_{cvl}"
 
+    if potential:
+        key += "-POT.csv"
+    else:
+        key += "-LIM.csv"
+    
+    df_results.to_csv(key, encoding="utf-8", index=False)
+ 
 
 def wofost_parameter_sweep():
     widgets.interact_manual(wofost_parameter_sweep_func,
                   crop_start_date=widgets.fixed(dt.date(2011, 7, 1)),
                   crop_end_date=widgets.fixed(dt.date(2011, 11, 1)),
-                  span=widgets.FloatSlider(value=40.0,min=20, max=50),
+                  span=widgets.FloatSlider(value=40.0, min=20, max=50),
+                  cvo = widgets.FloatSlider(value=0.72, min=0.1, max=0.9, step=0.02),
+                  cvl = widgets.FloatSlider(value=0.72, min=0.1, max=0.9, step=0.02),
                   tdwi=widgets.FloatSlider(value=20.0,min=5, max=50),
-                  tsum1=widgets.FloatSlider(value=750.0,min=600, max=1050),
-                  tsum2=widgets.FloatSlider(value=859.0,min=600, max=1050),
+                  tsum1=widgets.FloatSlider(value=750.0,min=100, max=1500),
+                  tsum2=widgets.FloatSlider(value=859.0,min=100, max=1500),
                   tsumem=widgets.FloatSlider(value=70,min=10, max=200),
                   rgrlai=widgets.FloatSlider(value=0.05, min=0.001, max=0.3, step=0.01),
                   meteo=widgets.fixed("Upper_East"),
                   crop=widgets.fixed("maize"),
                   variety=widgets.fixed("Maize_VanHeemst_1988"),
                   soil=widgets.fixed("ec4.new"),
-                  wav=widgets.FloatSlider(value=5, min=0, max=40),
+                  wav=widgets.FloatSlider(value=5, min=0, max=100),
                   co2=widgets.fixed(400),
                   rdmsol=widgets.fixed(100.),
                   potential=widgets.Checkbox(value=False, description='Potential mode',
