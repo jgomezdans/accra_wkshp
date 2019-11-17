@@ -37,7 +37,7 @@ def set_up_wofost(meteo, crop, variety, soil, mgmt, wav=100, co2=400, rdmsol=100
     parameters = ParameterProvider(cropdata=cropdata, soildata=soildata, sitedata=sitedata)
     agromanagement = YAMLAgroManagementReader("ghana_maize.amgt")
 
-    wdp = CABOWeatherDataProvider(meteo, fpath="./data/meteo")
+    wdp = CABOWeatherDataProvider(meteo, fpath="./data/meteo/Upper_West/")
     return parameters, agromanagement, wdp
     
 
@@ -52,13 +52,13 @@ def run_wofost(parameters, agromanagement, wdp, potential=True):
     return df_results, wofsim
 
 
-def change_sowing_date(sowing_date, harvest_date, meteo, crop, variety, soil, mgmt):
+def change_sowing_date(sowing_date, harvest_date, meteo, crop, variety, soil, mgmt,
+                        n_days=10):
     parameters, agromanagement, wdp = set_up_wofost(meteo, crop, variety, soil, mgmt,
-                                                    wav=0, co2=400, rdmsol=100.)
+                                                    wav=0, co2=400, rdmsol=100.,)
     fig, axs = plt.subplots(nrows=2, ncols=2, sharex=True, squeeze=True,
                            figsize=(14,14))
     axs = axs.flatten()
-    n_days = (harvest_date - sowing_date).days
     while sowing_date < harvest_date:
         agromanagement[0][dt.date(
             2011, 1, 1)]['CropCalendar']['crop_start_date'] = sowing_date
@@ -77,12 +77,12 @@ def change_sowing_date(sowing_date, harvest_date, meteo, crop, variety, soil, mg
 
 def change_sowing_slider():
     interact(change_sowing_date,
-            sowing_date=widgets.DatePicker(value=dt.date(2014, 7, 1)),
-            harvest_date=widgets.DatePicker(value=dt.date(2014, 10, 1)),
+            sowing_date=widgets.DatePicker(value=dt.date(2011, 7, 1)),
+            harvest_date=widgets.DatePicker(value=dt.date(2011, 10, 1)),
             #meteo=widgets.Dropdown(
             #            options=regions, value='Upper_East', description='Region:',
             #            disabled=False,),
-            meteo=fixed("Ghana"),
+            meteo=fixed("Upper_West"),
             crop=fixed("maize"),
             variety=fixed("Maize_VanHeemst_1988"),
             soil=fixed("ec4.new"),
