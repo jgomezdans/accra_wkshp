@@ -141,26 +141,28 @@ class WOFOSTEnKF(object):
             self.ensemble.append(member)
 
     def run_filter(self):
-        for obs_date, obs in tqdm(self.observations):
-            ensemble_state = self._run_wofost_gather_sates(obs_date)
-            P = np.array(ensemble_state.cov().values)
-            ensemble_obs = self._observations_ensemble(obs)
-            R = np.array(ensemble_obs.cov().values)
-            xx = [obs[x] for x in self.assimilation_variables]
-            obs = xx
-            K = self.kalman_gain(obs, P, R)
-            x = np.array(ensemble_state.values).T
-            y = np.array(ensemble_obs.values).T
-            x_opt = x + K @ (y - x)
-            df_analysis = pd.DataFrame(x_opt.T,
-                columns=self.assimilation_variables)
-            
-            for member, new_states in zip(self.ensemble,
-                                        df_analysis.itertuples()):
-                if "LAI" in self.assimilation_variables:
-                    member.set_variable("LAI", new_states.LAI)
-                if "SM" in self.assimilation_variables:
-                    member.set_variable("SM", new_states.SM)
+        if len(self.assimilation_variables) > 0:
+            for obs_date, obs in tqdm(self.observations):
+                
+                ensemble_state = self._run_wofost_gather_sates(obs_date)
+                P = np.array(ensemble_state.cov().values)
+                ensemble_obs = self._observations_ensemble(obs)
+                R = np.array(ensemble_obs.cov().values)
+                xx = [obs[x] for x in self.assimilation_variables]
+                obs = xx
+                K = self.kalman_gain(obs, P, R)
+                x = np.array(ensemble_state.values).T
+                y = np.array(ensemble_obs.values).T
+                x_opt = x + K @ (y - x)
+                df_analysis = pd.DataFrame(x_opt.T,
+                    columns=self.assimilation_variables)
+                
+                for member, new_states in zip(self.ensemble,
+                                            df_analysis.itertuples()):
+                    if "LAI" in self.assimilation_variables:
+                        member.set_variable("LAI", new_states.LAI)
+                    if "SM" in self.assimilation_variables:
+                        member.set_variable("SM", new_states.SM)
 
         [member.run_till_terminate() for member in self.ensemble]
 
@@ -195,22 +197,29 @@ class WOFOSTEnKF(object):
         return df_obs
 
 
-def run_ensemble(n_ensemble, start_date=dt.date(2011, 7, 1),
-                 end_date=dt.date(2011, 10, 30), sigma_lai=0.1, sigma_sm=0.25,
-                 n_obs=10, assim_lai=True, assim_sm=True):
-    observations = prepare_observations()
+def run_ensemble(n_ensemble, obs_period, sigma_lai=0.1, sigma_sm=0.25,
+                 n_obs=10, assim_lai=True, assim_sm=True,
+                 ens_param_inflation=1.):
+    start_date, end_date = obs_period
+    fname_out_str = f"n_ensemble_{n_ensemble}-obsperiod_{obs_period}-" + \
+                    f"sigmalai_{sigma_lai}-sigmasm_{sigma_sm}-" + \
+                    f"nobs_{n_obs}"
+    observations = prepare_observations(start_date=start_date,
+                    end_date=end_date,
+                    obs_file="data/sample_wofost_output.csv",
+                    n_obs=n_obs,  sigma_lai=sigma_lai, sigma_sm=sigma_sm )
     np.random.seed(42)
     override_parameters = {}
     #Initial conditions
-    override_parameters["TDWI"] = np.random.normal(150., 50., (n_ensemble))
-    override_parameters["WAV"] = np.random.normal(10, 5, (n_ensemble))
+    override_parameters["TDWI"] = np.random.normal(150., ens_param_inflation*50., (n_ensemble))
+    override_parameters["WAV"] = np.random.normal(10, ens_param_inflation*5, (n_ensemble))
     # parameters
-    override_parameters["SPAN"] = np.random.normal(42, 5 ,(n_ensemble))
-    override_parameters["TSUM1"] = np.random.normal(900, 50 ,(n_ensemble))
-    override_parameters["TSUM2"] = np.random.normal(950, 50 ,(n_ensemble))
-    override_parameters["CVL"] = np.random.normal(0.72, 0.2 ,(n_ensemble))
-    override_parameters["CVO"] = np.random.normal(0.71, 0.1 ,(n_ensemble))
-    override_parameters["CVR"] = np.random.normal(0.68, 0.1, (n_ensemble))
+    override_parameters["SPAN"] = np.random.normal(42, ens_param_inflation*5 ,(n_ensemble))
+    override_parameters["TSUM1"] = np.random.normal(900, ens_param_inflation*50 ,(n_ensemble))
+    override_parameters["TSUM2"] = np.random.normal(950, ens_param_inflation*50 ,(n_ensemble))
+    override_parameters["CVL"] = np.random.normal(0.72, ens_param_inflation*0.2 ,(n_ensemble))
+    override_parameters["CVO"] = np.random.normal(0.71, ens_param_inflation*0.1 ,(n_ensemble))
+    override_parameters["CVR"] = np.random.normal(0.68, ens_param_inflation*0.1, (n_ensemble))
 
     assim_vars = []
     if assim_lai:
@@ -221,4 +230,34 @@ def run_ensemble(n_ensemble, start_date=dt.date(2011, 7, 1),
     enkf = WOFOSTEnKF(assim_vars, override_parameters, n_ensemble, observations)
     enkf.setup_wofost()
     results = enkf.run_filter()
-    return results, observations
+    df_true = pd.read_csv("data/sample_wofost_output.csv")
+    df_true['date'] = pd.to_datetime(df_true.day)
+    df_true.set_index('date')
+
+    fig, axs = plt.subplots(nrows=5, ncols=2, sharex=True, squeeze=True,
+                           figsize=(16,16))
+    axs = axs.flatten()
+    for df_results in results:
+        for j, p in enumerate(WOFOST_PARAMETERS):
+            df_results['date'] = pd.to_datetime(df_results.index)
+            axs[j].plot_date(df_results.date, df_results[p],
+                        '-', c="0.6")
+            axs[j].set_ylabel(WOFOST_LABELS[p], fontsize=8)
+        # fig.autofmt_xdate()
+    for j, p in enumerate(WOFOST_PARAMETERS):
+        axs[j].plot_date(df_true.date, df_true[p],
+                        '-', c="#CF4457")
+    for obs_date, obs in observations:
+        axs[1].errorbar(obs_date, obs['LAI'][0], yerr=obs['LAI'][1],
+                        c ="#188487")
+        axs[9].errorbar(obs_date, obs['SM'][0], yerr=obs['SM'][1],
+                        c="#348ABD")
+    
+
+    plt.gcf().autofmt_xdate()
+    plt.gca().fmt_xdata = matplotlib.dates.DateFormatter('%Y-%m-%d')
+    axs[9].set_xlim(dt.date(2011, 6, 20), dt.datetime(2011, 11,20))
+    axs[8].set_xlabel("Time [d]")
+    axs[9].set_xlabel("Time [d]")
+    fig.savefig(f"{fname_out_str}.pdf", dpi=300, bbox_inches="tight")
+    #return results, observations
