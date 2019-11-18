@@ -28,10 +28,10 @@ This repository contains a number of Jupyter Python notebooks that demonstrate a
 
 * [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/jgomezdans/accra_wkshp/1.0?filepath=01-Meteo_Crop_Exploration.ipynb) A brief exploration of meteorological data from an agroclimatology perspective.
 * [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/jgomezdans/accra_wkshp/1.0?filepath=02-MODIS_LAI_exploration.ipynb) Exploring MODIS LAI data products over Ghana.
-* [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/jgomezdans/demo_ghana/master?filepath=examine_data.ipynb) A brief illustration of Sentinel-2 data over northern Ghana
-* [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/jgomezdans/accra_wkshp/1.0?filepath=03-Production_Efficiency_Modelling.ipynb)
-* [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/jgomezdans/accra_wkshp/1.0?filepath=04-WOFOST_playground.ipynb)
-* [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/jgomezdans/accra_wkshp/0.7?filepath=05-DA_wofost.ipynb)
+* [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/jgomezdans/demo_ghana/master?filepath=examine_data.ipynb) A brief illustration of Sentinel-2 data over northern Ghana.
+* [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/jgomezdans/accra_wkshp/1.0?filepath=03-Production_Efficiency_Modelling.ipynb) This notebook develops the intuition of a very simple production efficiency model (PEM).
+* [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/jgomezdans/accra_wkshp/1.0?filepath=04-WOFOST_playground.ipynb) A notebook demonstrating the use of the WOFOST crop model, applied to maize in northern Ghana.
+* [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/jgomezdans/accra_wkshp/0.7?filepath=05-DA_wofost.ipynb) Using data assimilation (DA) with crop growth models (WOFOST), an example using the Ensemble Kalman Filter (EnKF)
 
 
 
