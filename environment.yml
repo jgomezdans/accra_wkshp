@@ -2,6 +2,7 @@ name: accra_wkshp_ucl
 channels:
     - conda-forge
 dependencies:
+    - git
     - jupyterlab
     - notebook
     - nbconvert
