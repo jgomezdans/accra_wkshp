@@ -261,3 +261,41 @@ def run_ensemble(n_ensemble, obs_period, sigma_lai=0.1, sigma_sm=0.25,
     axs[9].set_xlabel("Time [d]")
     fig.savefig(f"{fname_out_str}.pdf", dpi=300, bbox_inches="tight")
     #return results, observations
+
+
+
+
+def run_enkf_widget():
+    start_date = dt.datetime(2011, 7, 1)
+    end_date = dt.datetime(2011, 10, 15)
+
+    dates = pd.date_range(start_date, end_date, freq='D')
+
+    options = [(date.strftime(' %d %b '), date) for date in dates]
+    index = (0, len(options) - 1)
+    integration_slider = widgets.SelectionRangeSlider(
+        options=options,
+        index=index,
+        description='Observation period',
+        orientation='horizontal',
+        layout={'width': '600px'},
+    )
+
+    widgets.interact_manual(run_ensemble,
+                            n_ensemble=widgets.IntSlider(
+                                min=2, max=1000, value=10, description="Number of ensemble members"),
+                            ens_param_inflation=widgets.FloatSlider(min=0.1, max=5, value=1.,
+                                    description="Increase the ensemble dispersion/unc"),
+                            obs_period=integration_slider,
+                            sigma_lai=widgets.FloatSlider(
+                                min=0.01, max=0.5, value=0.1, description="Relative Uncertainty in LAI"),
+                            sigma_sm=widgets.FloatSlider(
+                                min=0.01, max=0.5, value=0.25, description="Relative Uncertainty in SM"),
+                            n_obs=widgets.IntSlider(min=1, max=30, value=10,
+                                                    description="Number of observations to assimilate"),
+                            assim_lai=widgets.Checkbox(
+                                value=True, help="Assimilate LAI observations"),
+                            assim_sm=widgets.Checkbox(
+                                value=True, help="Assimilate soil moisture observations"),
+                            
+                            )
