@@ -16,6 +16,9 @@ from pcse.util import WOFOST71SiteDataProvider
 from pcse.base import ParameterProvider
 from pcse.models import Wofost71_WLP_FD, Wofost71_PP
 
+
+from tqdm.autonotebook import tqdm
+
 import ipywidgets.widgets as widgets
 from ipywidgets import interact, interactive, fixed
 
@@ -138,13 +141,13 @@ class WOFOSTEnKF(object):
             self.ensemble.append(member)
 
     def run_filter(self):
-        for obs_date, obs in self.observations:
-            print(f"Assimilating {obs_date}")
-            import pdb;pdb.set_trace()
+        for obs_date, obs in tqdm(self.observations):
             ensemble_state = self._run_wofost_gather_sates(obs_date)
             P = np.array(ensemble_state.cov().values)
             ensemble_obs = self._observations_ensemble(obs)
             R = np.array(ensemble_obs.cov().values)
+            xx = [obs[x] for x in self.assimilation_variables]
+            obs = xx
             K = self.kalman_gain(obs, P, R)
             x = np.array(ensemble_state.values).T
             y = np.array(ensemble_obs.values).T
@@ -154,10 +157,13 @@ class WOFOSTEnKF(object):
             
             for member, new_states in zip(self.ensemble,
                                         df_analysis.itertuples()):
-                member.set_variable("LAI", new_states.LAI)
-                member.set_variable("SM", new_states.SM)
+                if "LAI" in self.assimilation_variables:
+                    member.set_variable("LAI", new_states.LAI)
+                if "SM" in self.assimilation_variables:
+                    member.set_variable("SM", new_states.SM)
 
         [member.run_till_terminate() for member in self.ensemble]
+
         results = [pd.DataFrame(member.get_output()).set_index("day")
                     for member in self.ensemble]
         return results
@@ -189,11 +195,11 @@ class WOFOSTEnKF(object):
         return df_obs
 
 
-if __name__ == "__main__":
+def run_ensemble(n_ensemble, start_date=dt.date(2011, 7, 1),
+                 end_date=dt.date(2011, 10, 30), sigma_lai=0.1, sigma_sm=0.25,
+                 n_obs=10, assim_lai=True, assim_sm=True):
     observations = prepare_observations()
     np.random.seed(42)
-    n_ensemble = 50
-    # A container for the parameters that we will override
     override_parameters = {}
     #Initial conditions
     override_parameters["TDWI"] = np.random.normal(150., 50., (n_ensemble))
@@ -205,8 +211,14 @@ if __name__ == "__main__":
     override_parameters["CVL"] = np.random.normal(0.72, 0.2 ,(n_ensemble))
     override_parameters["CVO"] = np.random.normal(0.71, 0.1 ,(n_ensemble))
     override_parameters["CVR"] = np.random.normal(0.68, 0.1, (n_ensemble))
-    assim_vars = ["LAI", "SM"]
+
+    assim_vars = []
+    if assim_lai:
+        assim_vars.append("LAI")
+    if assim_sm:
+        assim_vars.append("SM")
     
     enkf = WOFOSTEnKF(assim_vars, override_parameters, n_ensemble, observations)
     enkf.setup_wofost()
     results = enkf.run_filter()
+    return results, observations
