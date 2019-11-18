@@ -201,9 +201,16 @@ def run_ensemble(n_ensemble, obs_period, sigma_lai=0.1, sigma_sm=0.25,
                  n_obs=10, assim_lai=True, assim_sm=True,
                  ens_param_inflation=1.):
     start_date, end_date = obs_period
-    fname_out_str = f"n_ensemble_{n_ensemble}-obsperiod_{obs_period}-" + \
+    sd = start_date.strftime("%d%b")
+    ed = end_date.strftime("%d%b")
+    Path("da_plots").mkdir(exist_ok=True, parents=True)
+    fname_out_str = f"da_plots/n_ensemble_{n_ensemble}-obsperiod_{sd}_{ed}-" + \
                     f"sigmalai_{sigma_lai}-sigmasm_{sigma_sm}-" + \
                     f"nobs_{n_obs}"
+    if assim_lai:
+        fname_out_str += "_LAI"
+    if assim_sm:
+        fname_out_str += "_SM"
     observations = prepare_observations(start_date=start_date,
                     end_date=end_date,
                     obs_file="data/sample_wofost_output.csv",
