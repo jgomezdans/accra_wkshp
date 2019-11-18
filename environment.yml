@@ -12,7 +12,6 @@ dependencies:
     - matplotlib
     - pandas
     - scipy
-    - ipysheets
     - python>=3.6
     - gdal>=2.3.0
     - tqdm
