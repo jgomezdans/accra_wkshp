@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """Some functionality for playing around with the meteo data"""
-
+import calendar
 import datetime as dt
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
@@ -236,13 +236,18 @@ def meteo_calculations(year):
     f_temp = np.convolve(f_temp, np.ones(5)/5, mode="same")
     return f_water, f_temp
 
+
 def extract_smooth_fapar(product="fapar", year=2018, smoother=100):
     golden_ratio = 0.61803398875
     mask57 = 0b11100000  # Select bits 5, 6 and 7
     product = product.lower()
+    if calendar.isleap(year):
+        xs = np.arange(1, 367)
+    else:
+        xs = np.arange(1, 366)
+    
     year = year-2003
     x = np.arange(1, 366, 8)
-    xs = np.arange(1, 366)
     y = np.loadtxt(f"data/mcd15_{product}_2003_2018_-022611_106965.txt")[:, year]
     qa = np.loadtxt("data/mcd15_qa_2003_2018_-022611_106965.txt", dtype=np.uint8)[:, year]
     unc = np.power(golden_ratio, np.right_shift(np.bitwise_and(qa, mask57), 5).astype(np.float32))
@@ -278,7 +283,6 @@ def crop_model_func(year, epsilon, integration_time):
     start_date0, end_date0 = integration_time
     start_date = dt.date(year, start_date0.month, start_date0.day)
     end_date = dt.date(year, end_date0.month, end_date0.day)
-
     fapar = extract_smooth_fapar(year=year)
     f_water, f_temp = meteo_calculations(year=year)
     gpp = epsilon*fapar*f_water*f_temp
