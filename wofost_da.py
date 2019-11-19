@@ -156,7 +156,6 @@ class WOFOSTEnKF(object):
                 x_opt = x + K @ (y - x)
                 df_analysis = pd.DataFrame(x_opt.T,
                     columns=self.assimilation_variables)
-                
                 for member, new_states in zip(self.ensemble,
                                             df_analysis.itertuples()):
                     if "LAI" in self.assimilation_variables:
@@ -227,6 +226,9 @@ def run_ensemble(n_ensemble, obs_period, sigma_lai=0.1, sigma_sm=0.25,
     override_parameters["CVL"] = np.random.normal(0.72, ens_param_inflation*0.2 ,(n_ensemble))
     override_parameters["CVO"] = np.random.normal(0.71, ens_param_inflation*0.1 ,(n_ensemble))
     override_parameters["CVR"] = np.random.normal(0.68, ens_param_inflation*0.1, (n_ensemble))
+    override_parameters["SMW"] = np.random.normal(0.3, ens_param_inflation*0.03, (n_ensemble))
+    override_parameters["SMFCF"] = np.random.normal(0.46, ens_param_inflation*0.04, (n_ensemble))
+    override_parameters["SM0"] = np.random.normal(0.57, ens_param_inflation*0.057, (n_ensemble))
 
     assim_vars = []
     if assim_lai:
@@ -242,23 +244,25 @@ def run_ensemble(n_ensemble, obs_period, sigma_lai=0.1, sigma_sm=0.25,
     df_true.set_index('date')
 
     fig, axs = plt.subplots(nrows=5, ncols=2, sharex=True, squeeze=True,
-                           figsize=(16,16))
+                           figsize=(18, 18))
     axs = axs.flatten()
     for df_results in results:
         for j, p in enumerate(WOFOST_PARAMETERS):
             df_results['date'] = pd.to_datetime(df_results.index)
             axs[j].plot_date(df_results.date, df_results[p],
-                        '-', c="0.6")
+                        '-', c="0.8")
             axs[j].set_ylabel(WOFOST_LABELS[p], fontsize=8)
         # fig.autofmt_xdate()
     for j, p in enumerate(WOFOST_PARAMETERS):
         axs[j].plot_date(df_true.date, df_true[p],
-                        '-', c="#CF4457")
+                        '-', c="#FFD92F")
     for obs_date, obs in observations:
         axs[1].errorbar(obs_date, obs['LAI'][0], yerr=obs['LAI'][1],
-                        c ="#188487")
+                        c ="#8DA0CB")
+        axs[1].plot(obs_date, obs['LAI'][0], 'o', c ="#8DA0CB") 
         axs[9].errorbar(obs_date, obs['SM'][0], yerr=obs['SM'][1],
-                        c="#348ABD")
+                        c="#A6D854")
+        axs[9].plot(obs_date, obs['SM'][0], 'o', c ="#A6D854") 
     
 
     plt.gcf().autofmt_xdate()
@@ -290,7 +294,7 @@ def run_enkf_widget():
 
     widgets.interact_manual(run_ensemble,
                             n_ensemble=widgets.IntSlider(
-                                min=2, max=1000, value=10, description="Number of ensemble members"),
+                                min=2, max=1000, value=50, description="Number of ensemble members"),
                             ens_param_inflation=widgets.FloatSlider(min=0.1, max=5, value=1.,
                                     description="Increase the ensemble dispersion/unc"),
                             obs_period=integration_slider,
@@ -301,8 +305,8 @@ def run_enkf_widget():
                             n_obs=widgets.IntSlider(min=1, max=30, value=10,
                                                     description="Number of observations to assimilate"),
                             assim_lai=widgets.Checkbox(
-                                value=True, help="Assimilate LAI observations"),
+                                value=False, help="Assimilate LAI observations"),
                             assim_sm=widgets.Checkbox(
-                                value=True, help="Assimilate soil moisture observations"),
+                                value=False, help="Assimilate soil moisture observations"),
                             
                             )
