@@ -21,6 +21,10 @@
 
 #### J Gomez-Dans (NCEO & UCL) `j.gomez-dans@ucl.ac.uk`
 
+
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.3662767.svg)](https://doi.org/10.5281/zenodo.3662767)
+
+
 This repository contains a number of Jupyter Python notebooks that demonstrate accessing datasets, including meteo and EO data, developing and running crop models, as well as deploying data assimilation systems to monitor crop growth.
 
 
